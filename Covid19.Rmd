@@ -9,9 +9,8 @@ output: html_document
 ---
 
 
-## Affected population
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{R echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 library(rgdal) 
 library(reshape)
 require(plyr)
@@ -19,7 +18,6 @@ require(sp)
 require(maps)
 library(dplyr)
 library(ggplot2)   # for general plotting
-#library(ggmap)    # for fortifying shapefiles
 require(maptools)
 library(stringr)
 library(RColorBrewer)
@@ -123,7 +121,7 @@ dim(covid_data)
 head(covid_data)
 covid_data$affected_population = round(covid_data$totale_casi/covid_data$population*100,4)
 
-map <- leaflet(shapefile) %>%
+map <- leaflet(data = shapefile, height=800, width=1000) %>%
   addPolygons(fillColor = "white", #blue
               fillOpacity = 0.5,
               color = "black",
@@ -145,16 +143,22 @@ map <- map %>% addMinicharts(covid_data$lng,covid_data$lat,
                         width = 50
                         ) 
 
-# rr <- tags$div(
-#   HTML('<h3> Percentage of population affected by Covid19 by province </h3>')
-# )  
-# 
-# map <- map %>% addControl(rr, position = "topleft")
-
-map
-
-# out_maps ="out/"
-# saveWidget(map, file="out/affect_pop_covid_19_prov.html")
+map <- map %>% setMapWidgetStyle(list(background= "white"))
 
 ```
 
+## Percentage of population affected by Covid19 by province
+
+On 31st January 2020, the Italian Council of Ministers declared the state of emergency as a result of the health risk associated with Covid19.
+
+Here I show a map reporting the percentage of population affected by province starting from 2nd of February 2020.
+
+To generate the map I used the following data:
+
+- Covid19 data published by the Italian government, https://github.com/pcm-dpc/COVID-19 (specifically my analysis exploits the data in https://github.com/pcm-dpc/COVID-19/blob/master/dati-province/dpc-covid19-ita-province.csv)
+- The shapefile of the Italian administrative boundaries (https://www.istat.it/it/archivio/222527)
+- Italian demographic data (http://dati.istat.it/Index.aspx?DataSetCode=DCIS_POPRES1).
+
+```{R echo=FALSE, message=FALSE, warning=FALSE}
+map
+```
