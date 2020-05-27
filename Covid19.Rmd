@@ -1,4 +1,9 @@
 ---
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 title: "Covid19"
 output: html_document
 ---
@@ -6,7 +11,7 @@ output: html_document
 
 ## Affected population
 
-```{r echo=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(rgdal) 
 library(reshape)
 require(plyr)
@@ -148,17 +153,8 @@ map <- map %>% addMinicharts(covid_data$lng,covid_data$lat,
 
 map
 
-out_maps ="out/"
-saveWidget(map, file="out/affect_pop_covid_19_prov.html")
+# out_maps ="out/"
+# saveWidget(map, file="out/affect_pop_covid_19_prov.html")
 
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
