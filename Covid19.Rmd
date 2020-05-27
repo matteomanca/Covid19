@@ -1,0 +1,164 @@
+---
+title: "Covid19"
+output: html_document
+---
+
+
+## Affected population
+
+```{r echo=FALSE}
+library(rgdal) 
+library(reshape)
+require(plyr)
+require(sp)
+require(maps)
+library(dplyr)
+library(ggplot2)   # for general plotting
+#library(ggmap)    # for fortifying shapefiles
+require(maptools)
+library(stringr)
+library(RColorBrewer)
+library(htmltools)
+library(leaflet.extras)
+library(leaflet.minicharts)
+library(htmlwidgets)
+library(tidyverse)
+
+# Read shapefile by province
+setwd('/Users/matteo/Dropbox/Research/01_Projects/2020/COVID-19')
+shape_path = 'data/aree/ProvCM01012018'
+
+shapefile <- readOGR(shape_path, "ProvCM01012018_WGS84")
+shapefile@proj4string <- CRS("+proj=utm +zone=30 +ellps=WGS84")
+shapefile = spTransform(shapefile, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84"))
+shapefile.points = fortify(shapefile)
+
+head(shapefile@data)
+
+# """""""""""""""""""""" Compute centroids for each polygon/province
+coords <- coordinates(getSpPPolygonsLabptSlots(shapefile))
+coords = as.data.frame(coords) %>% rename(lng = V1, lat=V2)
+
+head(coords,10)
+
+shapefile@data = cbind(shapefile@data, coords)
+
+head(shapefile@data)
+
+prov_centroid = shapefile@data %>% 
+  select("COD_PROV", "DEN_PCM",  "lng", "lat") %>% 
+  rename(codice_provincia = COD_PROV, nome_prov = DEN_PCM )
+head(prov_centroid)
+
+# Read Italian covid19 data by province
+library(curl)
+urlfile = "https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-province/dpc-covid19-ita-province.csv"
+covid_data = read.csv(curl(urlfile))
+covid_data = covid_data %>% 
+  filter(denominazione_provincia != "In fase di definizione/aggiornamento") %>% 
+  select(data, codice_provincia, denominazione_provincia, totale_casi) 
+head(covid_data)
+ 
+popup <- paste0("<strong>Prov: </strong>",
+                      shapefile@data$DEN_PCM
+                      
+)
+
+covid_data = merge(covid_data, prov_centroid, by = "codice_provincia")
+
+head(covid_data)
+
+
+population_data = read.csv("data/population/DCIS_POPRES1_26052020105446637.csv")
+population_data$ITTER107 = as.character(population_data$ITTER107)
+
+gender_population_data_prov = population_data %>% filter(nchar(ITTER107) == 5 & Marital.status == "total" & Age == "total") %>% 
+  select(Territory, Gender, Value) %>% rename(population = Value) %>% as.data.frame()
+head(gender_population_data_prov)
+
+
+total_population_data_prov = population_data %>% filter(nchar(ITTER107) == 5 & Gender == "total" & Marital.status == "total" & Age == "total") %>% 
+  select(Territory, Value) %>% rename(denominazione_provincia = Territory ,population = Value) %>% as.data.frame()
+head(total_population_data_prov)
+
+# check if names correspond between the 2 datasets: covid ds and population ds
+
+head(covid_data)
+length(unique(covid_data$nome_prov))
+length(unique(total_population_data_prov$Territory))
+
+dim(covid_data)
+temp = merge(covid_data, total_population_data_prov, by = "denominazione_provincia")
+dim(temp)
+
+setdiff(covid_data$denominazione_provincia, temp$denominazione_provincia)
+#  In population ds we have different names for "Aosta", "Bolzano", "Massa Carrara": make names homogeneous
+
+total_population_data_prov %>% filter(str_detect(denominazione_provincia, "Aosta") ) %>% head()
+total_population_data_prov = total_population_data_prov %>% mutate(denominazione_provincia = factor(ifelse(denominazione_provincia == "Valle d'Aosta / Vallée d'Aoste", "Aosta",  as.character(denominazione_provincia))))
+total_population_data_prov %>% filter(str_detect(denominazione_provincia, "Aosta") ) %>% head()
+head(total_population_data_prov)
+
+total_population_data_prov %>% filter(str_detect(denominazione_provincia, "Bolzano") ) %>% head()
+total_population_data_prov = total_population_data_prov %>% mutate(denominazione_provincia = factor(ifelse(denominazione_provincia == "Bolzano / Bozen", "Bolzano",  as.character(denominazione_provincia))))
+total_population_data_prov %>% filter(str_detect(denominazione_provincia, "Bolzano") ) %>% head()
+head(total_population_data_prov)
+
+total_population_data_prov %>% filter(str_detect(denominazione_provincia, "Massa") ) %>% head()
+total_population_data_prov = total_population_data_prov %>% mutate(denominazione_provincia = factor(ifelse(denominazione_provincia == "Massa-Carrara", "Massa Carrara",  as.character(denominazione_provincia))))
+total_population_data_prov %>% filter(str_detect(denominazione_provincia, "Massa") ) %>% head()
+head(total_population_data_prov)
+
+
+
+dim(covid_data)
+covid_data = merge(covid_data, total_population_data_prov, by = "denominazione_provincia")
+dim(covid_data)
+
+head(covid_data)
+covid_data$affected_population = round(covid_data$totale_casi/covid_data$population*100,4)
+
+map <- leaflet(shapefile) %>%
+  addPolygons(fillColor = "white", #blue
+              fillOpacity = 0.5,
+              color = "black",
+              # opacity =0.1,
+              weight = 0.5,
+              popup = popup
+  )
+
+map <- map %>% addLabelOnlyMarkers(prov_centroid$lng,prov_centroid$lat,
+                    label = ~htmlEscape(prov_centroid$nome_prov),
+                    labelOptions = labelOptions(noHide = TRUE, textOnly = TRUE, 
+                                                direction = "bottom", offset = c(0,0)))
+
+map <- map %>% addMinicharts(covid_data$lng,covid_data$lat,
+                        type = "polar-area",
+                        chartdata = covid_data[, c("affected_population")], 
+                        time = covid_data$data,
+                        showLabels = TRUE,
+                        width = 50
+                        ) 
+
+# rr <- tags$div(
+#   HTML('<h3> Percentage of population affected by Covid19 by province </h3>')
+# )  
+# 
+# map <- map %>% addControl(rr, position = "topleft")
+
+map
+
+out_maps ="out/"
+saveWidget(map, file="out/affect_pop_covid_19_prov.html")
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
