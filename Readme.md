@@ -9,6 +9,4 @@ To generate the map I used the following data:
 - The shapefile of the Italian administrative boundaries (https://www.istat.it/it/archivio/222527)
 - Italian demographic data (http://dati.istat.it/Index.aspx?DataSetCode=DCIS_POPRES1).
 
-# Maps of affected populatin by province in Italy
-
-https://matteomanca.github.io/Covid19/
+##### Map of affected populatin by province in Italy: https://matteomanca.github.io/Covid19/
