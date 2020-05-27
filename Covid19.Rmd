@@ -147,7 +147,8 @@ map <- map %>% setMapWidgetStyle(list(background= "white"))
 
 ```
 
-## Percentage of population affected by Covid19 by province
+## Percentage of population affected by Covid19 by province 
+
 
 On 31st January 2020, the Italian Council of Ministers declared the state of emergency as a result of the health risk associated with Covid19.
 
